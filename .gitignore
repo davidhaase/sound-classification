@@ -2,4 +2,5 @@
 */__pycache__
 *.DS_Store
 *.ipynb_checkpoints/
-/mp3process/savedata/*
+mp3process/saveddata
+mp3process/FirstInputLayer.ipynb
