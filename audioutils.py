@@ -1,6 +1,12 @@
 
 import os
 import re
+import json
+
+import pandas as pd
+import numpy as np
+
+import librosa
 
 from pydub import AudioSegment
 
@@ -13,6 +19,9 @@ class AudioSplitter():
         self.test_split = test_split
         self.test_catalog = []
         self.train_catalog = []
+        self.train_df = None
+        self.res_type = None
+        self.pickle_path = 'Pickles/'
         self.languages = {'ar':'Arabic', 'gk':'Greek', 'fa': 'Persian', 'ru':'Russian', 'tr': 'Turkish' }
         self.lang_files = { 'fa' : '/Volumes/LaCie Rose Gold 2TB/Datasets/Source/ASSIMIL Persian/ASSIMIL Persian/',
                             'tr' : '/Volumes/LaCie Rose Gold 2TB/Datasets/Source/ASSIMIL Turkish With Ease/ASSIMIL Turkish With Ease/',
@@ -94,6 +103,10 @@ class AudioSplitter():
             else:
                 print(file, 'not matched')
             self.train_catalog.append(details)
+
+        filename = self.target_dir + 'train_catalog.json'
+        with open(filename, 'w+') as f:
+            json.dump(self.train_catalog, f)
         print(len(self.train_catalog))
 
     def build_test_catalog(self):
@@ -109,4 +122,48 @@ class AudioSplitter():
             else:
                 print(file, 'not matched')
             self.test_catalog.append(details)
+
+        filename = self.test_dir + 'test_catalog.json'
+        with open(filename, 'w+') as f:
+            json.dump(self.test_catalog, f)
         print(len(self.test_catalog))
+
+    def extract_audio_features(self, num_features, res_type):
+        self.res_type = res_type
+        self.num_features = num_features
+        file_path = self.pickle_path + 'Train_' + str(self.test_split) + 's_' + str(num_features) + 'f.pkl'
+        if os.path.isfile(file_path):
+            print('Loading from pickle, {}'.format(file_path))
+            self.train_df = pd.read_pickle(file_path)
+        else:
+            train = pd.DataFrame.from_dict(self.train_catalog)
+
+            self.train_df = train.apply(self.train_parser, axis=1)
+            # self.train_df.rename(columns={0:'Features'}, inplace=True)
+            # self.train_df['Label'] = self.train_df['Features'].map(lambda x: x[1])
+            # self.train_df['Features'] = self.train_df['Features'].map(lambda x: x[0])
+            # self.train_df.to_pickle(self.pickle_train)
+            self.train_df.to_pickle(file_path)
+
+        # target = self.train_df['Label']
+        # features = self.train_df.drop('Label', axis=1)
+        # self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(features, target, test_size=self.test_size, random_state=self.random_state)
+        # self.y_train = self.train_df['Label']
+        # self.X_train = self.train_df.drop('Label', axis=1)
+    def train_parser(self, row):
+       # function to load files and extract features
+        file_name = row.Path
+       # handle exception to check if there isn't a file which is corrupted
+        try:
+    #       # here kaiser_fast is a technique used for faster extraction
+            X, sample_rate = librosa.load(file_name, res_type=self.res_type)
+    #       # we extract mfcc feature from data
+            mfccs = np.mean(librosa.feature.mfcc(y=X, sr=sample_rate, n_mfcc=self.num_features).T,axis=0)
+        except Exception as e:
+            print(e, "Error encountered while parsing file: ", row.Filename)
+            return None
+
+        features = mfccs
+        label = row.Language
+
+        return [features, label]
