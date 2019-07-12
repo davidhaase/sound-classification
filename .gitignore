@@ -1,8 +1,2 @@
-<<<<<<< HEAD
 .ipynb_checkpoints
 __pycache__
-=======
-*.mp3
-*/__pycache__
-*.DS_Store
->>>>>>> c244e962cdc5480364172b0aa14255231076ba3d
