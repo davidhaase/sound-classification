@@ -1,5 +1,8 @@
 
 import os
+import sys
+sys.path.append('./mp3process')
+
 import re
 import json
 
@@ -9,6 +12,7 @@ import numpy as np
 import librosa
 
 from pydub import AudioSegment
+from multifileprocess import multiprocess, data_label_write
 
 
 
@@ -17,17 +21,24 @@ class AudioSplitter():
         self.target_dir = target_dir + 'Extracts_' + str(test_split) + '/'
         self.test_dir = target_dir + 'Test_' + str(test_split) + '/'
         self.test_split = test_split
+
+        # Catalogs are arrays that hold dictionaries for each extract-audio file
         self.test_catalog = []
         self.train_catalog = []
+
+        # These attributes apply to the linear-feature extraction
         self.train_df = None
         self.res_type = None
         self.pickle_path = 'Pickles/'
+
+        # Make a list of languages and their source files here
         self.languages = {'ar':'Arabic', 'gk':'Greek', 'fa': 'Persian', 'ru':'Russian', 'tr': 'Turkish' }
         self.lang_files = { 'fa' : '/Volumes/LaCie Rose Gold 2TB/Datasets/Source/ASSIMIL Persian/ASSIMIL Persian/',
                             'tr' : '/Volumes/LaCie Rose Gold 2TB/Datasets/Source/ASSIMIL Turkish With Ease/ASSIMIL Turkish With Ease/',
                             'ru' : '/Volumes/LaCie Rose Gold 2TB/Datasets/Source/ASSIMIL Russian/ASSIMIL Russian/',
                             'gk' : '/Volumes/LaCie Rose Gold 2TB/Datasets/Source/ASSIMIL New Greek With Ease/ASSIMIL New Greek With Ease/',
                             'ar' : '/Volumes/LaCie Rose Gold 2TB/Datasets/Source/ASSIMIL Arabic/ASSIMIL Arabic/'}
+
 
     def process(self, seconds=4):
         for lang in self.lang_files:
@@ -89,6 +100,7 @@ class AudioSplitter():
                 count += 1
 
     def build_train_catalog(self):
+        self.train_catalog = []
         pattern = re.compile(r'(\w{2})(.+)\.mp3')
         for file in os.listdir(self.target_dir):
             details = {}
@@ -101,7 +113,7 @@ class AudioSplitter():
                 details['File_ID'] = ID
                 details['Language'] = self.languages[lang]
             else:
-                print(file, 'not matched')
+                print('{}: invalid audio filename; skipping'.format(file))
             self.train_catalog.append(details)
 
         filename = self.target_dir + 'train_catalog.json'
@@ -110,6 +122,7 @@ class AudioSplitter():
         print(len(self.train_catalog))
 
     def build_test_catalog(self):
+        self.test_catalog = []
         pattern = re.compile(r'(\w{2})(.+)\.mp3')
         for file in os.listdir(self.test_dir):
             details = {}
@@ -120,7 +133,7 @@ class AudioSplitter():
                 details['Path'] = self.test_dir + file
                 details['File_ID'] = ID
             else:
-                print(file, 'not matched')
+                print('{}: invalid audio filename; skipping'.format(file))
             self.test_catalog.append(details)
 
         filename = self.test_dir + 'test_catalog.json'
@@ -128,7 +141,43 @@ class AudioSplitter():
             json.dump(self.test_catalog, f)
         print(len(self.test_catalog))
 
-    def extract_audio_features(self, num_features, res_type):
+    def extract_features(self, batch_size, train_set=True ):
+        if train_set:
+            target_dir = self.target_dir
+            self.build_train_catalog()
+            catalog = self.train_catalog
+        else:
+            target_dir = self.test_dir
+            self.build_test_catalog()
+            catalog = self.test_catalog
+
+        file_list = []
+        for file_details in catalog:
+            if 'Path' in file_details.keys():
+                file_list.append(file_details['Path'])
+        start = 0
+        step = batch_size
+        count = 0
+        while ((start + step) < len(file_list)):
+            count += 1
+            file_name = target_dir + 'Pickles/processed_batch' + str(count) + '.pkl'
+            print(file_name)
+            end = start + step
+            all_data, labels = multiprocess(file_list[start:end])
+            data_label_write(all_data, labels, file_name)
+
+            start = end
+
+
+        count += 1
+        file_name = target_dir + 'Pickles/processed_batch' + str(count) + '.pkl'
+        print(file_name)
+
+        all_data, labels = multiprocess(file_list[start:])
+        data_label_write(all_data, labels, file_name)
+
+
+    def extract_linear_features(self, num_features, res_type):
         self.res_type = res_type
         self.num_features = num_features
         file_path = self.pickle_path + 'Train_' + str(self.test_split) + 's_' + str(num_features) + 'f.pkl'
