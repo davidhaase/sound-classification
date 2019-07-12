@@ -1,11 +1,11 @@
 import librosa, numpy as np
 
-def process(mp3file):
+def process(mp3file, n_mfcc = 13, n_mels = 128, bins_per_octave = 36):
     y, sr = librosa.load(mp3file)
     data = dict()
     #collect all from data
     # Let's make and display a mel-scaled power (energy-squared) spectrogram
-    S = librosa.feature.melspectrogram(y, sr=sr, n_mels=128)
+    S = librosa.feature.melspectrogram(y, sr=sr, n_mels=n_mels)
 
     # Convert to log scale (dB). We'll use the peak power (max) as reference.
     log_S = librosa.power_to_db(S, ref=np.max)
@@ -24,10 +24,10 @@ def process(mp3file):
     data["log_Sh"] = log_Sh
     data["log_Sp"] = log_Sp
 
-    C = librosa.feature.chroma_cqt(y=y_harmonic, sr=sr, bins_per_octave=36)
+    C = librosa.feature.chroma_cqt(y=y_harmonic, sr=sr, bins_per_octave=bins_per_octave)
     data["C"] = C
     # Next, we'll extract the top 13 Mel-frequency cepstral coefficients (MFCCs)
-    mfcc        = librosa.feature.mfcc(S=log_S, n_mfcc=13)
+    mfcc        = librosa.feature.mfcc(S=log_S, n_mfcc=n_mfcc)
 
     # Let's pad on the first and second deltas while we're at it
     delta_mfcc  = librosa.feature.delta(mfcc)
@@ -37,12 +37,12 @@ def process(mp3file):
     data["delta_mfcc"] = delta_mfcc
     data["delta2_mfcc"] = delta2_mfcc
 
-    tempo, beats = librosa.beat.beat_track(y=y_percussive, sr=sr)
+    #tempo, beats = librosa.beat.beat_track(y=y_percussive, sr=sr)
 
-    data["tempo"] = tempo
-    data["beats"] = beats
+    #data["tempo"] = tempo
+    #data["beats"] = beats
 
-    C_sync = librosa.util.sync(C, beats, aggregate=np.median)
+    #C_sync = librosa.util.sync(C, beats, aggregate=np.median)
 
-    data["C_sync"] = C_sync
+    #data["C_sync"] = C_sync
     return data
