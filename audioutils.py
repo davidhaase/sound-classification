@@ -105,16 +105,16 @@ class AudioSplitter():
 
                 count += 1
 
-    def get_details(self, target_dir):
+    def get_details(self, source_dir):
         details = []
         pattern = re.compile(r'(\w{2})(.+)\.mp3')
-        for file in os.listdir(target_dir):
+        for file in os.listdir(source_dir):
             detail = {}
             match = pattern.search(file)
             if(match):
                 lang, ID = match.group(1), match.group(2)
                 detail['Filename'] = file
-                detail['Path'] = target_dir + file
+                detail['Path'] = source_dir + file
                 detail['Lang_ID'] = lang
                 detail['File_ID'] = ID
                 detail['Language'] = self.language_map[lang]
@@ -124,19 +124,38 @@ class AudioSplitter():
         return details
 
     def extract_features(self, train_dir, test_dir, write_dir, func):
+        # First try to build an output directory
         dir_name = self.get_next_dir(write_dir)
         next_dir = write_dir + dir_name + '/'
-        train_dir = next_dir+ 'Train_Feature_Pickles/'
-        test_dir = next_dir + 'Test_Feature_Pickles/'
+        train_out = next_dir+ 'Train_Feature_Pickles/'
+        test_out = next_dir + 'Test_Feature_Pickles/'
 
         try:
-            os.makedirs(train_dir)
-            os.makedirs(test_dir)
+            os.makedirs(train_out)
+            os.makedirs(test_out)
         except Exception as e:
             print(e)
             return
 
-        settings = {'train_dir':train_dir, 'test_dir':test_dir, 'write_dir':write_dir, 'function':func}
+        # Second, now build the features based on the passed function
+        train_df = pd.DataFrame.from_dict(self.get_details(train_dir))
+        test_df = pd.DataFrame.from_dict(self.get_details(test_dir))
+
+        train_df.dropna(inplace=True)
+        test_df.dropna(inplace=True)
+
+        train_df['Features'] = train_df['Path'].map(lambda x: func(x))
+        train_df.to_pickle(train_out + 'extracted.pkl')
+        # test_df['Features'] = test_df['Path'].map(lambda x: func(x))
+        # test_df.to_pickle(test_out + 'extracted.pkl')
+
+
+        # Now write all the settings to a companion file in the output directory
+        settings = {'train_dir':train_dir,
+                    'test_dir':test_dir,
+                    'write_dir':write_dir,
+                    'train_out':train_out,
+                    'test_out':test_out}
         settings_file = next_dir + dir_name + '_job_settings.txt'
         try:
             f = open(settings_file, 'w+')
@@ -144,15 +163,6 @@ class AudioSplitter():
             f.close()
         except Exception as e:
             print(e)
-
-
-
-
-
-
-
-
-
 
     def get_next_dir(self, write_dir):
         if (os.path.isdir(write_dir) is False):
