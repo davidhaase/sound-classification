@@ -107,7 +107,7 @@ class AudioSplitter():
 
     def get_details(self, source_dir):
         details = []
-        pattern = re.compile(r'(\w{2})(.+)\.mp3')
+        pattern = re.compile(r'(\w{2})(.+)\.m4a')
         for file in os.listdir(source_dir):
             detail = {}
             match = pattern.search(file)
@@ -138,16 +138,16 @@ class AudioSplitter():
             return
 
         # Second, now build the features based on the passed function
-        train_df = pd.DataFrame.from_dict(self.get_details(train_dir))
+        # train_df = pd.DataFrame.from_dict(self.get_details(train_dir))
         test_df = pd.DataFrame.from_dict(self.get_details(test_dir))
 
-        train_df.dropna(inplace=True)
+        # train_df.dropna(inplace=True)
         test_df.dropna(inplace=True)
 
-        train_df['Features'] = train_df['Path'].map(lambda x: func(x))
-        train_df.to_pickle(train_out + 'extracted.pkl')
-        # test_df['Features'] = test_df['Path'].map(lambda x: func(x))
-        # test_df.to_pickle(test_out + 'extracted.pkl')
+        # train_df['Features'] = train_df['Path'].map(lambda x: func(x))
+        # train_df.to_pickle(train_out + 'extracted.pkl')
+        test_df['Features'] = test_df['Path'].map(lambda x: func(x))
+        test_df.to_pickle(test_out + 'extracted.pkl')
 
 
         # Now write all the settings to a companion file in the output directory
