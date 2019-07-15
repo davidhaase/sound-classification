@@ -10,6 +10,7 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn import metrics
 
 from keras.models import Sequential
+from keras.models import load_model
 from keras.layers import Dense, Dropout, Activation, Flatten
 from keras.layers import Convolution1D, Convolution2D, MaxPooling2D
 from keras.optimizers import Adam
@@ -37,29 +38,34 @@ val_y = np.array(val_y.tolist())
 
 lb = LabelEncoder()
 
+
 y_train = np_utils.to_categorical(lb.fit_transform(y_train))
 val_y = np_utils.to_categorical(lb.fit_transform(val_y))
 
+pickle.dump(lb, open('encoder.pkl','wb+'))
+
 num_labels = y_train.shape[1]
 filter_size = 2
-model = Sequential()
-model.add(Dense(256, input_shape=(40,)))
-model.add(Activation('relu'))
-model.add(Dropout(0.5))
-
-model.add(Dense(256))
-model.add(Activation('relu'))
-model.add(Dropout(0.5))
-
-model.add(Dense(num_labels))
-model.add(Activation('softmax'))
-
-model.compile(loss='categorical_crossentropy', metrics=['accuracy'], optimizer='adam')
-
-history = model.fit(X_train, y_train, epochs=num_epochs, validation_data=(val_X, val_y), shuffle=False, verbose=1)
+# model = Sequential()
+# model.add(Dense(256, input_shape=(40,)))
+# model.add(Activation('relu'))
+# model.add(Dropout(0.5))
+#
+# model.add(Dense(256))
+# model.add(Activation('relu'))
+# model.add(Dropout(0.5))
+#
+# model.add(Dense(num_labels))
+# model.add(Activation('softmax'))
+#
+# model.compile(loss='categorical_crossentropy', metrics=['accuracy'], optimizer='adam')
+#
+# history = model.fit(X_train, y_train, epochs=num_epochs, validation_data=(val_X, val_y), shuffle=False, verbose=1)
+# model.save('my_model.h5')
+new_model = load_model('my_model.h5')
 
 X_predict = np.array(test_df.Features.tolist())
-predictions = model.predict_classes(X_predict)
+predictions = new_model.predict_classes(X_predict)
 test_df['prediction_number'] = predictions
 test_df['prediction_label'] = lb.inverse_transform(predictions)
 test_df.drop(['File_ID', 'prediction_number','Path', 'Features', 'Lang_ID'], axis=1, inplace=True)
