@@ -1,7 +1,9 @@
 
 import os
+import sys
+sys.path.append('./mp3process')
+
 import re
-import json
 
 import pandas as pd
 import numpy as np
@@ -9,49 +11,67 @@ import numpy as np
 import librosa
 
 from pydub import AudioSegment
+from multifileprocess import multiprocess, data_label_write
 
 
+arabic = {'Label': 'Arabic', 'Short':'ar', 'Path':'/Volumes/LaCie Rose Gold 2TB/Datasets/Audio/Source/ASSIMIL Arabic/ASSIMIL Arabic/'}
+greek = {'Label': 'Greek', 'Short':'gk', 'Path':'/Volumes/LaCie Rose Gold 2TB/Datasets/Audio/Source/ASSIMIL New Greek With Ease/ASSIMIL New Greek With Ease/'}
+persian = {'Label': 'Persian', 'Short':'fa', 'Path':'/Volumes/LaCie Rose Gold 2TB/Datasets/Audio/Source/ASSIMIL Persian/ASSIMIL Persian/'}
+russian = {'Label': 'Russian', 'Short':'ru', 'Path':'/Volumes/LaCie Rose Gold 2TB/Datasets/Audio/Source/ASSIMIL Russian/ASSIMIL Russian/'}
+turkish = {'Label': 'Turkish', 'Short':'tr', 'Path':'/Volumes/LaCie Rose Gold 2TB/Datasets/Audio/Source/ASSIMIL Turkish With Ease/ASSIMIL Turkish With Ease/'}
 
 class AudioSplitter():
-    def __init__(self, target_dir, test_split):
-        self.target_dir = target_dir + 'Extracts_' + str(test_split) + '/'
-        self.test_dir = target_dir + 'Test_' + str(test_split) + '/'
-        self.test_split = test_split
-        self.test_catalog = []
-        self.train_catalog = []
-        self.train_df = None
-        self.res_type = None
-        self.pickle_path = 'Pickles/'
-        self.languages = {'ar':'Arabic', 'gk':'Greek', 'fa': 'Persian', 'ru':'Russian', 'tr': 'Turkish' }
-        self.lang_files = { 'fa' : '/Volumes/LaCie Rose Gold 2TB/Datasets/Source/ASSIMIL Persian/ASSIMIL Persian/',
-                            'tr' : '/Volumes/LaCie Rose Gold 2TB/Datasets/Source/ASSIMIL Turkish With Ease/ASSIMIL Turkish With Ease/',
-                            'ru' : '/Volumes/LaCie Rose Gold 2TB/Datasets/Source/ASSIMIL Russian/ASSIMIL Russian/',
-                            'gk' : '/Volumes/LaCie Rose Gold 2TB/Datasets/Source/ASSIMIL New Greek With Ease/ASSIMIL New Greek With Ease/',
-                            'ar' : '/Volumes/LaCie Rose Gold 2TB/Datasets/Source/ASSIMIL Arabic/ASSIMIL Arabic/'}
+    def __init__(self, source_languages):
+        # Make a list of languages and their source files here
+        self.source_languages = source_languages
+        self.language_map = {}
+        for lang in source_languages:
+            self.language_map[lang['Short']] = lang['Label']
 
-    def process(self, seconds=4):
-        for lang in self.lang_files:
-            print('Processing {}'.format(lang))
+    def split(self, write_dir, duration_s, test_split=0.2, rebuild=False):
 
-            if (os.path.isdir(self.target_dir) is False):
-                try:
-                    os.makedirs(self.target_dir)
-                except Exception as e:
-                    print(e)
-                    return
-
-            if (os.path.isdir(self.test_dir) is False):
-                try:
-                    os.makedirs(self.test_dir)
-                except Exception as e:
-                    print(e)
-                    return
+        # test_split is the percentage of test files versus training
+        # First confirm that test_split is a valid percentage
+        if (test_split > 1.0 or test_split < 0.0):
+            print('test_split value must be between 0 and 1. You enterered {}'.format(test_split))
+            return
 
 
-            self.split(lang, self.lang_files[lang], seconds)
+        # Build extracted audio files based on a duration in seconds
+        # The target and test files are stored in folders with called 'Train_[the num of seconds]'
+        train_dir = write_dir + str(duration_s) + '_Seconds/Train_' + str(duration_s) + '/'
+        test_dir = write_dir + str(duration_s) + '_Seconds/Test_' + str(duration_s) + '/'
 
-    def split(self, lang, source_dir, seconds):
+        # Make the target and test directories if theg don't already exist
+        if (os.path.isdir(train_dir) is False):
+            try:
+                os.makedirs(train_dir)
+                if (os.path.isdir(test_dir) is False):
+                    os.makedirs(test_dir)
+            except Exception as e:
+                print(e)
+                return
+
+        # Avoid rebuilding if necessary, so check the file count
+        # But also give them the chance to force a rebuild
+        file_count = len(os.listdir(train_dir))
+        if (file_count > 0) and (rebuild==False):
+            print('{} files already found in {}'.format(file_count, train_dir))
+            print('Not rebuilding segments. Pass rebuild=True to force rebuild')
+            return train_dir, test_dir
+
+        # Here is the main loop for slicing the files into extracts
+        print('Processing files for {} languages'.format(len(self.source_languages)))
+        for lang in self.source_languages:
+            print('\t{}...'.format(lang['Label']))
+            self.slice(lang['Short'], lang['Path'], train_dir, test_dir, test_split, duration_s)
+
+        return train_dir, test_dir
+
+    def slice(self, lang, source_dir, train_dir, test_dir, test_split, seconds):
         count = 1
+
+        test_split = int(1/test_split)
 
         for file in os.listdir(source_dir):
             if 'mp3' not in file:
@@ -63,7 +83,6 @@ class AudioSplitter():
 
             # Opening file and extracting segment
             song = AudioSegment.from_mp3(file_path)
-            print(len(song))
 
             # Time to miliseconds
             startTime = 0
@@ -74,96 +93,129 @@ class AudioSplitter():
                 extract = song[startTime:endTime]
                 startTime = endTime
                 endTime += interval
+
                 # Saving
-
-
-                new_file = self.target_dir+ lang + str(count) + ext
-                print(new_file)
+                new_file = train_dir + lang + str(count) + ext
+                print(new_file, end='\r')
                 extract.export(new_file, format="mp3")
 
-                if (count%self.test_split == 0):
-                    test_file = self.test_dir + lang + str(count) + ext
+                if (count%test_split == 0):
+                    test_file = test_dir + lang + str(count) + ext
                     os.rename(new_file, test_file)
-
 
                 count += 1
 
-    def build_train_catalog(self):
-        pattern = re.compile(r'(\w{2})(.+)\.mp3')
-        for file in os.listdir(self.target_dir):
-            details = {}
+    def get_details(self, source_dir):
+        details = []
+        pattern = re.compile(r'(\w{2})(.+)\.m4a')
+        for file in os.listdir(source_dir):
+            detail = {}
             match = pattern.search(file)
             if(match):
                 lang, ID = match.group(1), match.group(2)
-                details['Filename'] = file
-                details['Path'] = self.target_dir + file
-                details['Lang_ID'] = lang
-                details['File_ID'] = ID
-                details['Language'] = self.languages[lang]
+                detail['Filename'] = file
+                detail['Path'] = source_dir + file
+                detail['Lang_ID'] = lang
+                detail['File_ID'] = ID
+                detail['Language'] = self.language_map[lang]
             else:
-                print(file, 'not matched')
-            self.train_catalog.append(details)
+                print('{}: invalid audio filename; skipping'.format(file))
+            details.append(detail)
+        return details
 
-        filename = self.target_dir + 'train_catalog.json'
-        with open(filename, 'w+') as f:
-            json.dump(self.train_catalog, f)
-        print(len(self.train_catalog))
+    def extract_features(self, train_dir, test_dir, write_dir, func):
+        # First try to build an output directory
+        dir_name = self.get_next_dir(write_dir)
+        next_dir = write_dir + dir_name + '/'
+        train_out = next_dir+ 'Train_Feature_Pickles/'
+        test_out = next_dir + 'Test_Feature_Pickles/'
 
-    def build_test_catalog(self):
-        pattern = re.compile(r'(\w{2})(.+)\.mp3')
-        for file in os.listdir(self.test_dir):
-            details = {}
-            match = pattern.search(file)
-            if(match):
-                lang, ID = match.group(1), match.group(2)
-                details['Filename'] = file
-                details['Path'] = self.test_dir + file
-                details['File_ID'] = ID
-            else:
-                print(file, 'not matched')
-            self.test_catalog.append(details)
-
-        filename = self.test_dir + 'test_catalog.json'
-        with open(filename, 'w+') as f:
-            json.dump(self.test_catalog, f)
-        print(len(self.test_catalog))
-
-    def extract_audio_features(self, num_features, res_type):
-        self.res_type = res_type
-        self.num_features = num_features
-        file_path = self.pickle_path + 'Train_' + str(self.test_split) + 's_' + str(num_features) + 'f.pkl'
-        if os.path.isfile(file_path):
-            print('Loading from pickle, {}'.format(file_path))
-            self.train_df = pd.read_pickle(file_path)
-        else:
-            train = pd.DataFrame.from_dict(self.train_catalog)
-
-            self.train_df = train.apply(self.train_parser, axis=1)
-            # self.train_df.rename(columns={0:'Features'}, inplace=True)
-            # self.train_df['Label'] = self.train_df['Features'].map(lambda x: x[1])
-            # self.train_df['Features'] = self.train_df['Features'].map(lambda x: x[0])
-            # self.train_df.to_pickle(self.pickle_train)
-            self.train_df.to_pickle(file_path)
-
-        # target = self.train_df['Label']
-        # features = self.train_df.drop('Label', axis=1)
-        # self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(features, target, test_size=self.test_size, random_state=self.random_state)
-        # self.y_train = self.train_df['Label']
-        # self.X_train = self.train_df.drop('Label', axis=1)
-    def train_parser(self, row):
-       # function to load files and extract features
-        file_name = row.Path
-       # handle exception to check if there isn't a file which is corrupted
         try:
-    #       # here kaiser_fast is a technique used for faster extraction
-            X, sample_rate = librosa.load(file_name, res_type=self.res_type)
-    #       # we extract mfcc feature from data
-            mfccs = np.mean(librosa.feature.mfcc(y=X, sr=sample_rate, n_mfcc=self.num_features).T,axis=0)
+            os.makedirs(train_out)
+            os.makedirs(test_out)
         except Exception as e:
-            print(e, "Error encountered while parsing file: ", row.Filename)
-            return None
+            print(e)
+            return
 
-        features = mfccs
-        label = row.Language
+        # Second, now build the features based on the passed function
+        # train_df = pd.DataFrame.from_dict(self.get_details(train_dir))
+        test_df = pd.DataFrame.from_dict(self.get_details(test_dir))
 
-        return [features, label]
+        # train_df.dropna(inplace=True)
+        test_df.dropna(inplace=True)
+
+        # train_df['Features'] = train_df['Path'].map(lambda x: func(x))
+        # train_df.to_pickle(train_out + 'extracted.pkl')
+        test_df['Features'] = test_df['Path'].map(lambda x: func(x))
+        test_df.to_pickle(test_out + 'extracted.pkl')
+
+
+        # Now write all the settings to a companion file in the output directory
+        settings = {'train_dir':train_dir,
+                    'test_dir':test_dir,
+                    'write_dir':write_dir,
+                    'train_out':train_out,
+                    'test_out':test_out}
+        settings_file = next_dir + dir_name + '_job_settings.txt'
+        try:
+            f = open(settings_file, 'w+')
+            f.write(str(settings))
+            f.close()
+        except Exception as e:
+            print(e)
+
+    def get_next_dir(self, write_dir):
+        if (os.path.isdir(write_dir) is False):
+            try:
+                os.makedirs(write_dir)
+            except Exception as e:
+                print(e)
+                return
+
+        pattern = re.compile(r'feat_(\d+)')
+
+        max_dir = 0
+        for dir_name in os.listdir(write_dir):
+            match = pattern.search(dir_name)
+            if match:
+                count = int(match.group(1))
+                if count > max_dir:
+                    max_dir = count
+
+        new_dir = 'feat_{0:03d}'.format(max_dir + 1)
+        return new_dir
+
+    # def extract_features(self, batch_size, train_set=True ):
+    #     if train_set:
+    #         target_dir = self.target_dir
+    #         self.build_train_catalog()
+    #         catalog = self.train_catalog
+    #     else:
+    #         target_dir = self.test_dir
+    #         self.build_test_catalog()
+    #         catalog = self.test_catalog
+    #
+    #     file_list = []
+    #     for file_details in catalog:
+    #         if 'Path' in file_details.keys():
+    #             file_list.append(file_details['Path'])
+    #     start = 0
+    #     step = batch_size
+    #     count = 0
+    #     while ((start + step) < len(file_list)):
+    #         count += 1
+    #         file_name = target_dir + 'Pickles/processed_batch' + str(count) + '.pkl'
+    #         print(file_name)
+    #         end = start + step
+    #         all_data, labels = multiprocess(file_list[start:end])
+    #         data_label_write(all_data, labels, file_name)
+    #
+    #         start = end
+    #
+    #
+    #     count += 1
+    #     file_name = target_dir + 'Pickles/processed_batch' + str(count) + '.pkl'
+    #     print(file_name)
+    #
+    #     all_data, labels = multiprocess(file_list[start:])
+    #     data_label_write(all_data, labels, file_name)
