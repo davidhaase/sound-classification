@@ -22,7 +22,7 @@ def get_3_log_model():
     com = concatenate([mod.output for mod in mods])
     x = Dense(100,activation="relu",use_bias=True)(com)
     x = Dense(50,activation="relu",use_bias=True)(x)
-    x = Dense(6,activation="softmax",use_bias=True)(x)
+    x = Dense(5,activation="softmax",use_bias=True)(x)
     mod = Model(inputs = inputs,outputs = x)
     opt = Adam(lr=.01)
     mod.compile(optimizer=opt,loss='categorical_crossentropy',metrics=["accuracy"])
