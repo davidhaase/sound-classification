@@ -4,10 +4,10 @@ import sys
 import os
 import time
 sample_rate = 44100
-seconds_per_audio_file = 20
+seconds_per_audio_file = 5
 amount_of_channels = 1
-relative_path_temp_audio = "temp/temp.wav"
-relative_path_to_code = "code/predictor_function.py"
+relative_path_temp_audio = "temp.wav"
+relative_path_to_code = "predictor_function.py"
 relative_path_to_model = "model/keras_model"
 welcome_message = f"""
 Welcome to David and Noah's language classifier.
@@ -17,25 +17,27 @@ Accent and fluency do matter, so only use languages you are
 either native or near native.
 """
 
-def start():
-    path_to_model = sys.argv[1]
-    path_to_src = sys.argv[2]
+def start(first_time):
 
-    temp_audio_path = append_path(path_to_src + relative_path_temp_audio)
-    print(welcome_message)
-    print("(Press return to record)           ",end='\r')
-    input()
+    path_to_src = sys.argv[1]
+
+    temp_audio_path = append_path(path_to_src , relative_path_temp_audio)
+    if first_time:
+        print(welcome_message)
+        print("(Press return to record)           ",end='\r')
+        input()
+
     print("recording...                       ",end="\r")
-    record(sample_rate,seconds_per_audio_file,append_path(path_to_src+relative_path_temp_audio),amount_of_channels)
-
+    record(sample_rate,seconds_per_audio_file,append_path(path_to_src,relative_path_temp_audio),amount_of_channels)
+    print("finished recording                 ",end="\r")
     sys.path.append(append_path(path_to_src,relative_path_to_code))
-    from predictor_function import *
+    from predictor_function import load_model,predict
     model = load_model(append_path(path_to_src,relative_path_to_model))
 
-    prediction = predict(append_path(path_to_src+relative_path_temp_audio),model)
-
+    prediction = predict(append_path(path_to_src,relative_path_temp_audio),model)
+    time.sleep(2)
     print("prediction is                      ",end="\r")
-    sleep_time = .1
+    sleep_time = .5
     time.sleep(sleep_time)
     print("prediction is.                     ",end="\r")
     time.sleep(sleep_time)
@@ -44,8 +46,12 @@ def start():
     print("prediction is...                   ",end="\r")
     time.sleep(1)
     print(f"{prediction}!                     ")
-    print("Try again?                         ",end="\r")
-    start()
+    time.sleep(2)
+
+    print("\nTry again? (Y/n)                 ",end="\r")
+    inp = input()
+    if inp.lower() == "y":
+        start(False)
 
 
 
@@ -78,5 +84,5 @@ def append_path(base, path):
 
 
 
-if _name_ == "_main_":
-    start()
+
+start(True)
