@@ -1,16 +1,7 @@
 
 import os
-import sys
-sys.path.append('./mp3process')
 import pickle
-
 import re
-
-
-import librosa
-
-from pydub import AudioSegment
-from multifileprocess import multiprocess, data_label_write
 
 import pickle
 import pandas as pd
@@ -29,6 +20,9 @@ from keras.layers import Dense, Dropout, Activation, Flatten
 from keras.layers import Convolution1D, Convolution2D, MaxPooling2D
 from keras.optimizers import Adam
 from keras.utils import np_utils
+
+import librosa
+from pydub import AudioSegment
 
 
 arabic = {'Label': 'Arabic', 'Short':'ar', 'Path':'/Volumes/LaCie Rose Gold 2TB/Datasets/Audio/Source/ASSIMIL Arabic/ASSIMIL Arabic/'}
@@ -210,13 +204,11 @@ class Predictor():
     def set_model(self, model_path):
         self.model = load_model(model_path)
 
-    def build_model(self):
-        train_file = '/Volumes/LaCie Rose Gold 2TB/Datasets/Features/feat_003/Train_Feature_Pickles/extracted.pkl'
-        test_file = '/Volumes/LaCie Rose Gold 2TB/Datasets/Features/feat_006/Test_Feature_Pickles/extracted.pkl'
+    def build_model_from_features(self, features_files, force=False):
+        train_file = features_files
         prediction_csv = 'predictions.csv'
 
         train_df = pd.read_pickle(train_file)
-        test_df = pd.read_pickle(test_file)
 
         test_size = 0.2
         random_state = 23
@@ -239,38 +231,64 @@ class Predictor():
 
         pickle.dump(self.lb, open('encoder.pkl','wb+'))
 
-        # num_labels = y_train.shape[1]
-        # filter_size = 2
-        # model = Sequential()
-        # model.add(Dense(256, input_shape=(40,)))
-        # model.add(Activation('relu'))
-        # model.add(Dropout(0.5))
-        #
-        # model.add(Dense(256))
-        # model.add(Activation('relu'))
-        # model.add(Dropout(0.5))
-        #
-        # model.add(Dense(num_labels))
-        # model.add(Activation('softmax'))
-        #
-        # model.compile(loss='categorical_crossentropy', metrics=['accuracy'], optimizer='adam')
-        #
-        # history = model.fit(X_train, y_train, epochs=num_epochs, validation_data=(val_X, val_y), shuffle=False, verbose=1)
-        # model.save('my_model.h5')
-        # new_model = load_model('my_model.h5')
+        num_labels = y_train.shape[1]
+        filter_size = 2
+        self.model = Sequential()
+        self.model.add(Dense(256, input_shape=(40,)))
+        self.model.add(Activation('relu'))
+        self.model.add(Dropout(0.5))
 
-        # X_predict = np.array(test_df.Features.tolist())
-        # predictions = new_model.predict_classes(X_predict)
-        # test_df['prediction_number'] = predictions
-        # test_df['prediction_label'] = lb.inverse_transform(predictions)
-        # test_df.drop(['File_ID', 'prediction_number','Path', 'Features', 'Lang_ID'], axis=1, inplace=True)
+        self.model.add(Dense(256))
+        self.model.add(Activation('relu'))
+        self.model.add(Dropout(0.5))
+
+        self.model.add(Dense(num_labels))
+        self.model.add(Activation('softmax'))
+
+        self.model.compile(loss='categorical_crossentropy', metrics=['accuracy'], optimizer='adam')
+
+        self.history = self.model.fit(X_train, y_train, epochs=num_epochs, validation_data=(val_X, val_y), shuffle=False, verbose=0)
+        self.model.save('my_model.h5')
+        self.plot_histories()
+        # new_model = load_model('my_model.h5')
         #
-        # test_df['Correct'] = False
-        # test_df.loc[test_df['Language'] == test_df['prediction_label'], 'Correct'] = True
-        # correct = test_df['Correct'].sum()
-        # total = len(test_df)
-        # print('{} correct out of {}: {}%'.format(correct, total, correct/total))
-        # test_df.to_csv(prediction_csv, index=False)
+        # # X_predict = np.array(test_df.Features.tolist())
+        # # predictions = new_model.predict_classes(X_predict)
+        # # test_df['prediction_number'] = predictions
+        # # test_df['prediction_label'] = lb.inverse_transform(predictions)
+        # # test_df.drop(['File_ID', 'prediction_number','Path', 'Features', 'Lang_ID'], axis=1, inplace=True)
+        # #
+        # # test_df['Correct'] = False
+        # # test_df.loc[test_df['Language'] == test_df['prediction_label'], 'Correct'] = True
+        # # correct = test_df['Correct'].sum()
+        # # total = len(test_df)
+        # # print('{} correct out of {}: {}%'.format(correct, total, correct/total))
+        # # test_df.to_csv(prediction_csv, index=False)
+
+    def plot_histories(self):
+        plt.figure(figsize=(18, 10))
+        acc = list(self.history.history['acc'])
+        val_acc = list(self.history.history['val_acc'])
+        plt.plot(acc)
+        plt.plot(val_acc)
+        plt.title('model_accuracy')
+        plt.ylabel('accuracy')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'test'], loc='best')
+        plt.savefig('output/accuracy.png')
+        plt.show()
+
+        plt.figure(figsize=(18, 10))
+        loss = list(self.history.history['loss'])
+        val_loss = list(self.history.history['val_loss'])
+        plt.plot(loss)
+        plt.plot(val_loss)
+        plt.title('model_loss')
+        plt.ylabel('loss')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'test'], loc='best')
+        plt.savefig('output/loss.png')
+        plt.show()
 
     def predict_file(self, file_path):
         try:
@@ -295,40 +313,3 @@ class Predictor():
             return None
 
         return mfccs
-
-
-
-    # def extract_features(self, batch_size, train_set=True ):
-    #     if train_set:
-    #         target_dir = self.target_dir
-    #         self.build_train_catalog()
-    #         catalog = self.train_catalog
-    #     else:
-    #         target_dir = self.test_dir
-    #         self.build_test_catalog()
-    #         catalog = self.test_catalog
-    #
-    #     file_list = []
-    #     for file_details in catalog:
-    #         if 'Path' in file_details.keys():
-    #             file_list.append(file_details['Path'])
-    #     start = 0
-    #     step = batch_size
-    #     count = 0
-    #     while ((start + step) < len(file_list)):
-    #         count += 1
-    #         file_name = target_dir + 'Pickles/processed_batch' + str(count) + '.pkl'
-    #         print(file_name)
-    #         end = start + step
-    #         all_data, labels = multiprocess(file_list[start:end])
-    #         data_label_write(all_data, labels, file_name)
-    #
-    #         start = end
-    #
-    #
-    #     count += 1
-    #     file_name = target_dir + 'Pickles/processed_batch' + str(count) + '.pkl'
-    #     print(file_name)
-    #
-    #     all_data, labels = multiprocess(file_list[start:])
-    #     data_label_write(all_data, labels, file_name)

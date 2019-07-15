@@ -46,23 +46,23 @@ pickle.dump(lb, open('encoder.pkl','wb+'))
 
 num_labels = y_train.shape[1]
 filter_size = 2
-# model = Sequential()
-# model.add(Dense(256, input_shape=(40,)))
-# model.add(Activation('relu'))
-# model.add(Dropout(0.5))
-#
-# model.add(Dense(256))
-# model.add(Activation('relu'))
-# model.add(Dropout(0.5))
-#
-# model.add(Dense(num_labels))
-# model.add(Activation('softmax'))
-#
-# model.compile(loss='categorical_crossentropy', metrics=['accuracy'], optimizer='adam')
-#
-# history = model.fit(X_train, y_train, epochs=num_epochs, validation_data=(val_X, val_y), shuffle=False, verbose=1)
-# model.save('my_model.h5')
-new_model = load_model('my_model.h5')
+model = Sequential()
+model.add(Dense(256, input_shape=(40,)))
+model.add(Activation('relu'))
+model.add(Dropout(0.5))
+
+model.add(Dense(256))
+model.add(Activation('relu'))
+model.add(Dropout(0.5))
+
+model.add(Dense(num_labels))
+model.add(Activation('softmax'))
+
+model.compile(loss='categorical_crossentropy', metrics=['accuracy'], optimizer='adam')
+
+history = model.fit(X_train, y_train, epochs=num_epochs, validation_data=(val_X, val_y), shuffle=False, verbose=1)
+model.save('my_model.h5')
+# new_model = load_model('my_model.h5')
 
 X_predict = np.array(test_df.Features.tolist())
 predictions = new_model.predict_classes(X_predict)
