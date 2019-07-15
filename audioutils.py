@@ -2,16 +2,33 @@
 import os
 import sys
 sys.path.append('./mp3process')
+import pickle
 
 import re
 
-import pandas as pd
-import numpy as np
 
 import librosa
 
 from pydub import AudioSegment
 from multifileprocess import multiprocess, data_label_write
+
+import pickle
+import pandas as pd
+import numpy as np
+
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from sklearn import metrics
+
+from keras.models import Sequential
+from keras.models import load_model
+from keras.layers import Dense, Dropout, Activation, Flatten
+from keras.layers import Convolution1D, Convolution2D, MaxPooling2D
+from keras.optimizers import Adam
+from keras.utils import np_utils
 
 
 arabic = {'Label': 'Arabic', 'Short':'ar', 'Path':'/Volumes/LaCie Rose Gold 2TB/Datasets/Audio/Source/ASSIMIL Arabic/ASSIMIL Arabic/'}
@@ -184,6 +201,102 @@ class AudioSplitter():
 
         new_dir = 'feat_{0:03d}'.format(max_dir + 1)
         return new_dir
+
+class Predictor():
+    def __init__(self, model_path):
+        self.model = load_model(model_path)
+        self.lb = pickle.load(open('encoder.pkl', 'rb'))
+
+    def set_model(self, model_path):
+        self.model = load_model(model_path)
+
+    def build_model(self):
+        train_file = '/Volumes/LaCie Rose Gold 2TB/Datasets/Features/feat_003/Train_Feature_Pickles/extracted.pkl'
+        test_file = '/Volumes/LaCie Rose Gold 2TB/Datasets/Features/feat_006/Test_Feature_Pickles/extracted.pkl'
+        prediction_csv = 'predictions.csv'
+
+        train_df = pd.read_pickle(train_file)
+        test_df = pd.read_pickle(test_file)
+
+        test_size = 0.2
+        random_state = 23
+        num_epochs = 100
+
+        target = train_df['Language']
+        features = train_df.drop('Language', axis=1)
+        X_train, val_X, y_train, val_y = train_test_split(features, target, test_size=test_size, random_state=random_state)
+
+        X_train = np.array(X_train.Features.tolist())
+        y_train = np.array(y_train.tolist())
+
+        val_X = np.array(val_X.Features.tolist())
+        val_y = np.array(val_y.tolist())
+
+        self.lb = LabelEncoder()
+
+        y_train = np_utils.to_categorical(self.lb.fit_transform(y_train))
+        val_y = np_utils.to_categorical(self.lb.fit_transform(val_y))
+
+        pickle.dump(self.lb, open('encoder.pkl','wb+'))
+
+        # num_labels = y_train.shape[1]
+        # filter_size = 2
+        # model = Sequential()
+        # model.add(Dense(256, input_shape=(40,)))
+        # model.add(Activation('relu'))
+        # model.add(Dropout(0.5))
+        #
+        # model.add(Dense(256))
+        # model.add(Activation('relu'))
+        # model.add(Dropout(0.5))
+        #
+        # model.add(Dense(num_labels))
+        # model.add(Activation('softmax'))
+        #
+        # model.compile(loss='categorical_crossentropy', metrics=['accuracy'], optimizer='adam')
+        #
+        # history = model.fit(X_train, y_train, epochs=num_epochs, validation_data=(val_X, val_y), shuffle=False, verbose=1)
+        # model.save('my_model.h5')
+        # new_model = load_model('my_model.h5')
+
+        # X_predict = np.array(test_df.Features.tolist())
+        # predictions = new_model.predict_classes(X_predict)
+        # test_df['prediction_number'] = predictions
+        # test_df['prediction_label'] = lb.inverse_transform(predictions)
+        # test_df.drop(['File_ID', 'prediction_number','Path', 'Features', 'Lang_ID'], axis=1, inplace=True)
+        #
+        # test_df['Correct'] = False
+        # test_df.loc[test_df['Language'] == test_df['prediction_label'], 'Correct'] = True
+        # correct = test_df['Correct'].sum()
+        # total = len(test_df)
+        # print('{} correct out of {}: {}%'.format(correct, total, correct/total))
+        # test_df.to_csv(prediction_csv, index=False)
+
+    def predict_file(self, file_path):
+        try:
+            features = [self.get_features(file_path)]
+            df = pd.DataFrame.from_dict({'Path':file_path, 'Features':features})
+            X_predict = np.array(df.Features.tolist())
+            coded_predictions = self.model.predict_classes(X_predict)
+            return self.lb.inverse_transform(coded_predictions)
+        except Exception as e:
+            print(e)
+
+    def get_features(self, file_path, num_features=40, res_type='kaiser_fast'):
+
+        # handle exception to check if there isn't a file which is corrupted
+        try:
+          # here kaiser_fast is a technique used for faster extraction
+            X, sample_rate = librosa.load(file_path, res_type=res_type)
+          # we extract mfcc feature from data
+            mfccs = np.mean(librosa.feature.mfcc(y=X, sr=sample_rate, n_mfcc=num_features).T,axis=0)
+        except Exception as e:
+            print(e, "Error encountered while parsing file: ", file_path)
+            return None
+
+        return mfccs
+
+
 
     # def extract_features(self, batch_size, train_set=True ):
     #     if train_set:

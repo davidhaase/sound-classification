@@ -18,9 +18,20 @@ from keras.utils import np_utils
 
 import librosa
 
-def extract_linear_features(file_path):
-    num_features = 40
-    res_type = 'kaiser_fast'
+
+def predict(file_path, model_path):
+    try:
+        model = load_model(model_path)
+        lb = pickle.load(open('encoder.pkl', 'rb'))
+        features = [get_features(file_path)]
+        df = pd.DataFrame.from_dict({'Path':file_path, 'Features':features})
+        X_predict = np.array(df.Features.tolist())
+        coded_predictions = model.predict_classes(X_predict)
+        return lb.inverse_transform(coded_predictions)
+    except Exception as e:
+        print(e)
+
+def get_features(file_path, num_features=40, res_type='kaiser_fast'):
 
     # handle exception to check if there isn't a file which is corrupted
     try:
@@ -33,30 +44,3 @@ def extract_linear_features(file_path):
         return None
 
     return mfccs
-
-
-def predict(path_to_audio_file, model_path):
-    prediction = 'Unknown'
-    lb = pickle.load( open( 'encoder.pkl', 'rb' ) )
-    asset = [{'Path':path_to_audio_file}]
-    test_df = pd.DataFrame.from_dict(asset)
-
-    test_df.dropna(inplace=True)
-
-
-    try:
-        model = load_model(model_path)
-    except Exception as e:
-        print(e)
-        return
-
-    try:
-        test_df['Features'] = test_df['Path'].map(lambda x: extract_linear_features(x))
-    except Exception as e:
-        print('Failed to extract features from {}'.format(path_to_audio_file))
-        print(e)
-
-    X_predict = np.array(test_df.Features.tolist())
-    coded_predictions = model.predict_classes(X_predict)
-    prediction = lb.inverse_transform(coded_predictions)[0]
-    return prediction
