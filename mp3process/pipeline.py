@@ -23,7 +23,10 @@ def fit_dict(data,labels,model,keys,**kwargs):
             will be passed to model.fit()
             Ex/ epochs = 100
     '''
-    input_vals = [reshape_for_model(data[key]) for key in keys]
+    if type(data) != dict:
+        input_vals = reshape_for_model(data)
+    else:
+        input_vals = [reshape_for_model(data[key]) for key in keys]
     labs = to_categorical(LabelEncoder().fit_transform(labels))
     return model.fit(x=input_vals,y=labs,**kwargs)
 def reshape_for_model(data):
