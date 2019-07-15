@@ -1,0 +1,12 @@
+#!/bin/bash
+
+
+# SRC =  path_to_src = sys.argv[1]
+SRC="/path/to/mp3process/"
+# path to Predictor.py
+PYFILE=/path/to/mp3process/Predictor.py
+source ~/anaconda3/etc/profile.d/conda.sh
+#conda init bash
+conda activate learn-env
+#python $PYFILE
+python3 $PYFILE $SRC
