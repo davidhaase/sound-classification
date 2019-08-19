@@ -1,78 +1,50 @@
 # Sound Classification
-This project is a curriculum requirement of the Flatiron Module 6 project that attempts to detect language using MP3 audio and keras
+Training a neural network to identify languages based on audio recordings (MP3).  This project is a curriculum requirement of the Flatiron Module 6 project.
 
-#### -- Project Status: [Active, On-Hold, Completed]
+#### -- Project Status: [Completed]
 
 ## Project Intro/Objective
-The purpose of this project is ________. (Describe the main goals of the project and potential civic impact. Limit to a short paragraph, 3-6 Sentences)
+The high-level purpose of this project was to build a model that could detect which language was being spoken in a here-to-for unknown audio file.  The model trained on professional language-learning recordings of Arabic, Fârsi, Greek, Russian and Turkish.  And given a snippet of novel audio -- could it determine which language was being spoken.  
+
+The *scholarly* purpose of this project was to introduce ourselves to nueral networks while at the same time discovering if traditional machine-learning techniques can also apply to audio data (MP3s), and if so, what are the "features" that could be used for audio files? 
 
 ### Partner
-* [Name of Partner organization/Government department etc..]
-* Website for partner
-* Partner contact: [Name of Contact], [slack handle of contact if any]
-* If you do not have a partner leave this section out
+* Partner contact: Noah Sragow
 
 ### Methods Used
-* Inferential Statistics
-* Machine Learning
-* Data Visualization
-* Predictive Modeling
-* etc.
+* Deep-Learning
 
 ### Technologies
-* R 
 * Python
-* D3
-* PostGres, MySql
-* Pandas, jupyter
-* HTML
-* JavaScript
-* etc. 
+* Keras
+* Librosa
+* Pydub
 
 ## Project Description
-(Provide more detailed overview of the project.  Talk a bit about your data sources and what questions and hypothesis you are exploring. What specific data analysis/visualization and modelling work are you using to solve the problem? What blockers and challenges are you facing?  Feel free to number or bullet point things here)
+The project had humble beginnings -- can we build a neural network?  If so, can we use audio speech recordings as data? We used professional, high-quality audio recordings for language learning in Arabic, Fârsi, Greek, Russian and Turkish which were split into 2-second exerpts totally 2,808 exercpts.  10% were kept completely apart, and the remaining 90% were used in training and validating the model. We used the librosa package in python to extract 40 MFCC features from the audio to use as our features.  With great surprise, of the 280 novel excerpts, the model successfully identified all but 2 excerpts.  
 
 ## Needs of this project
 
-- frontend developers
-- data exploration/descriptive statistics
-- data processing/cleaning
-- statistical modeling
-- writeup/reporting
-- etc. (be as specific as possible)
+- deep-learning specialists
+- Acoustic/recording specialists
 
 ## Getting Started
 
-1. Clone this repo (for help see this [tutorial](https://help.github.com/articles/cloning-a-repository/)).
-2. Raw Data is being kept [here](Repo folder containing raw data) within this repo.
-
-    *If using offline data mention that and how they may obtain the data from the froup)*
-    
-3. Data processing/transformation scripts are being kept [here](Repo folder containing data processing scripts/notebooks)
-4. etc...
-
-*If your project is well underway and setup is fairly complicated (ie. requires installation of many packages) create another "setup.md" file and link to it here*  
-
-5. Follow setup [instructions](Link to file)
+1. TK
 
 ## Featured Notebooks/Analysis/Deliverables
-* [Notebook/Markdown/Slide Deck Title](link)
-* [Notebook/Markdown/Slide DeckTitle](link)
-* [Blog Post](link)
+* TK
 
 
 ## Contributing DSWG Members
 
-**Team Leads (Contacts) : [Full Name](https://github.com/[github handle])(@slackHandle)**
+** n.a
 
 #### Other Members:
 
 |Name     |  Slack Handle   | 
 |---------|-----------------|
-|[Full Name](https://github.com/[github handle])| @johnDoe        |
-|[Full Name](https://github.com/[github handle]) |     @janeDoe    |
+|TK |    TK  |
 
 ## Contact
-* If you haven't joined the SF Brigade Slack, [you can do that here](http://c4sf.me/slack).  
-* Our slack channel is `#datasci-projectname`
-* Feel free to contact team leads with any questions or if you are interested in contributing!
+* TK
